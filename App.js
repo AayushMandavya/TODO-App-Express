@@ -4,14 +4,31 @@ const express = require ("express");
 const dotenv = require("dotenv");
 const bodyParser = require("body-parser");
 const getConnection = require('./config/db');
+const todoRouter = require ('./routes/todo.routes');
+const session = require("express-session");
+const helmet = require("helmet");
+
 //init process
 dotenv.config();
 const App = express();
+App.use(helmet());
+
 App.use(bodyParser.urlencoded({extended:true}));
 App.set("view engine","ejs");
+App.use(bodyParser.json());
+App.use(express.static("public"));
 const App_Port = process.env.PORT || 8000;
 const conn= getConnection();
 
+App.use(
+  session({
+    name: "auth-session",
+    secret: "This-is-a-secret",
+    saveUninitialized: true,
+    cookie: { maxAge: 1000 * 60 * 60 * 24 },
+    resave: false,
+  })
+);
 
 //middleware
 App.use((req, res,next)=>{
@@ -19,55 +36,10 @@ App.use((req, res,next)=>{
     next();
 });
 
-App.get("/",(req,res)=>{
-    console.log(req.conn);
-
-    req.conn.query("SELECT * FROM todo",(error,result)=>{
-        if(error){
-            res.status(500).send("error aayo");
-        }
-        res.render("index",{items:result.rows});
-    });
-   
-});
+//routes
+App.use(todoRouter);
 
 
-//declaring todos
-// let todos = [
-// {
-//     task: 'yessir',
-//     completed: false
-// }];
-
-//adding todo tasks
-App.post("/add-todo",(req,res)=>{
-    console.log(req.body);
-   req.conn.query("insert into todo (id,title,iscomplete) values($1,$2,$3)",[Math.floor(Math.random(5)*1000),req.body.todo,false],(error,result)=>{
-    if(error){
-        res.status(500).send("error aayo");
-    }
-    res.redirect("/");
-   })
-   
-    res.end();
-})
-
-//deleting todo tasks
-App.post("/remove-todo", (req, res) => {
-    console.log(req.body.delete);
-    todos.splice(req.body.delete, 1);
-    res.redirect("/");
-})
-
-//complete state declaration 
-App.post('/complete', (req, res) => {
-    console.log('completed:' + req.body.complete);
-    const tasknum = req.body.completed;
-    if (tasknum >= 0 && tasknum < todos.length) {
-        todos[tasknum].completed = true;
-      }
-      res.redirect("/");
-});
 
 //server activation
 App.listen(App_Port,()=>{
